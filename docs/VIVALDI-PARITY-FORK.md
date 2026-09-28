@@ -13,7 +13,7 @@ This is the working copy of the design doc, kept in the fork repo. The original 
 up in `FirefoxWorkspaceExtension/stg-fork-native-tab-groups-design.md` and is frozen.
 
 - **Fork base:** `Drive4ik/simple-tab-groups` master at `71b37bf1` (2026-09-12), unreleased
-  **v6.0** dev line (`strict_min_version: 140.0`). Remote `upstream`; work happens on branch
+  **v6.0** dev line (upstream `strict_min_version: 140.0`; the fork raised it to `142.0` in Phase 11). Remote `upstream`; work happens on branch
   `vivaldi-parity`. No GitHub fork exists yet — `gh` is not installed on this machine; add the
   GitHub fork as `origin` before the first push.
 - **Build/gate:** `cd addon && npm install && npm run build` (webpack → `addon/dist/`), lint with
@@ -75,7 +75,7 @@ Browser facts the fork relies on (all from `docs/TABGROUPS-BEHAVIOR.md`, verifie
 | 8 | User-visible terminology: the add-on's own groups are called **workspaces** in all English UI text; Firefox native groups are always **tab groups**; identifiers, keys and file names untouched | done 2026-09-23 (see 0.11); review clean from both reviewers |
 | 9 | Rename to **Strata Workspaces**: display name, add-on id `strata-workspaces@dacite.dev`, homepage, docs, scripts; GitHub repo `DaciteRocks/strata-workspaces` and the `origin` remote, renamed as the last step | done 2026-09-23 (see 0.12); GitHub repo renamed and `origin` updated 2026-09-23 |
 | 10 | AMO listing refresh: description and version notes cover the Phase 7 activation rule and Phase 8 terminology; version stays 6.0.0.1 unless a package was already uploaded | done 2026-09-23 (see 0.13); version stays 6.0.0.1; review: one wording nit applied |
-| 11 | Clear the AMO validator warnings: `gecko_android` min 142 in the manifest, upstream's static module map in `module-runner.js` and `DOMParser` in `lang.js`, reviewer note for the vendored Vue `innerHTML`; `npm run lint:amo` (web-ext lint) as the gate | planned (see 0.14) |
+| 11 | Clear the AMO validator warnings: `gecko.strict_min_version` raised to 142.0 (no `gecko_android` block), upstream's static module map in `module-runner.js` and `DOMParser` in `lang.js`, reviewer note for the vendored Vue `innerHTML`; `npm run lint:amo` (web-ext lint) as the gate | planned (see 0.14) |
 
 Milestones 2–5 of §7 are covered by upstream (see 0.1) and are **not** re-implemented.
 
@@ -667,8 +667,11 @@ warnings, verified 2026-09-28, so it is this phase's gate — no new package.
   of `menus-main`, `menus-tab`, `menus-link`, `menus-bookmark`. Upstream's map holds exactly these eight.
   An unknown name makes `MODULES[moduleName]()` throw a `TypeError`, caught by `log.onCatch(['execute
   module', …])` — a clear error, no custom guard (a guard would diverge from upstream for nothing).
-- *#1: add `"gecko_android": {"strict_min_version": "142.0"}`* beside `gecko` in `browser_specific_settings`.
-  Desktop `strict_min_version` stays `140.0`; desktop behavior is unchanged. See the Android risk below.
+- *#1: raise `gecko.strict_min_version` from `140.0` to `142.0`; add no `gecko_android` block.* Decided
+  2026-09-28 (the planned Android fallback, taken up front instead of `gecko_android`): a `gecko_android` key is read by AMO as an
+  Android-support signal, and the add-on is desktop only. Raising the desktop minimum clears the same warning,
+  and the fork is only tested on Firefox 154+, so 142 costs nothing. `docs/AMO-LISTING.md`'s Compatibility row
+  names the 142.0 minimum; no other doc states one.
 - *#4: do not touch `js/vue.runtime.esm.js`.* The `innerHTML` at line ~7580 is Vue 2.7.16's `v-html`
   implementation; all `v-html` bindings (`options/*.vue`) receive the add-on's own locale strings with
   hard-coded URLs and browser-name data. It gets one paragraph in `docs/AMO-LISTING.md` "Notes to reviewer".
@@ -677,7 +680,7 @@ warnings, verified 2026-09-28, so it is this phase's gate — no new package.
 
 **Scope.** At the end of the phase:
 
-- `addon/src/manifest.json` — `gecko_android` block added.
+- `addon/src/manifest.json` — `gecko.strict_min_version` is `142.0`; no `gecko_android` block.
 - `addon/src/js/module-runner.js`, `addon/src/js/lang.js` — identical to `upstream/master`.
 - `addon/package.json` — `lint:amo` script; `addon/README.md` — one line naming it.
 - `docs/AMO-LISTING.md` "Notes to reviewer" — a paragraph: the remaining `innerHTML` warning is the unmodified
@@ -711,11 +714,8 @@ warnings, verified 2026-09-28, so it is this phase's gate — no new package.
 
 **Risks.**
 
-- *`gecko_android` may make AMO mark the version as compatible with Firefox for Android.* AMO reads that key
-  as an Android-support signal; the listing says desktop only. After upload, check the version's
-  compatibility on AMO. If Android was added and the listing's compatibility control cannot remove it, replace
-  the `gecko_android` block with `gecko.strict_min_version: "142.0"` — that also clears the warning, and the
-  fork is only tested on Firefox 154+; then update the `140.0` mention at the top of §0.
+- *Android compatibility* — avoided by the #1 decision: with no `gecko_android` key AMO has nothing to infer
+  Android support from. After upload, still confirm the version shows desktop only, minimum 142.0.
 - *`DOMParser` nodes are inert* (scripts do not run) — fine, no locale string carries a script. Formatting
   differences would only show in the six `html:` messages of the help pages; step 1 above covers them.
 - *`web-ext lint` and the AMO validator drift* (different addons-linter versions). The AMO result wins;

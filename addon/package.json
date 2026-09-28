@@ -10,6 +10,7 @@
         "watch": "npm run build -- --watch",
         "dev": "npm run watch",
         "build-zip": "node scripts/build-zip.js",
+        "lint:amo": "web-ext lint --source-dir dist",
         "test:firefox": "node scripts/test-firefox.js",
         "test:firefox:smoke": "node scripts/test-firefox.js --smoke",
         "test:firefox:reset": "node scripts/test-firefox.js --reset"

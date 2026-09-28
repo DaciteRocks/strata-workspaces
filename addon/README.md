@@ -27,6 +27,7 @@ npm run build-for-amo
 ```
 
 The extension is written to `dist/`. Its contents must match the uploaded package file for file.
+`npm run lint:amo` then runs `web-ext lint` on `dist/`; it reports one warning, the Vue runtime's `innerHTML`.
 
 ## How the uploaded files were made
 

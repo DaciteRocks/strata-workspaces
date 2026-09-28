@@ -8,7 +8,7 @@ Paste-ready text for the AMO submission form. Choose **"On this site"** (listed)
 | - | - |
 | Package | `addon/dist-zip/strata-workspaces@dacite.dev-v6.0.0.1-prod.zip` from `npm run build-zip` |
 | Source code | `addon/dist-zip/strata-workspaces@dacite.dev-v6.0.0.1-dev.zip` — answer **Yes** to "Do you need to submit source code?" (webpack) |
-| Compatibility | Firefox for desktop only (not Android) |
+| Compatibility | Firefox for desktop only (not Android), 142.0 and later |
 
 ## Describe
 
@@ -118,3 +118,11 @@ recommended so users can see that.
 > backup files; `management` detects conflicting tab add-ons; `storage`, `unlimitedStorage` store
 > workspaces. Optional: `bookmarks` for bookmark export, `nativeMessaging` for the local backup helper,
 > `browserSettings` for new-tab settings.
+>
+> Validator: the one remaining warning, "Unsafe assignment to innerHTML" in `js/vue.runtime.esm.js`, is the
+> unmodified Vue 2.7.16 runtime's `v-html` implementation. Every `v-html` binding in the add-on receives its own
+> locale strings with hard-coded URLs and values, never page or user content. The other three warnings from the
+> previous validator run are fixed in this version: `strict_min_version` is now 142.0 (the Android-min-version
+> warning; the add-on is desktop only), the dynamic `import()` in `js/module-runner.js` is a static module map,
+> and `createContextualFragment` in `js/lang.js` is replaced by `DOMParser` (both taken unchanged from
+> upstream Simple Tab Groups). `npm run lint:amo` runs `web-ext lint` on `dist/`.
