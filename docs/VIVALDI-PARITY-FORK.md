@@ -75,7 +75,8 @@ Browser facts the fork relies on (all from `docs/TABGROUPS-BEHAVIOR.md`, verifie
 | 8 | User-visible terminology: the add-on's own groups are called **workspaces** in all English UI text; Firefox native groups are always **tab groups**; identifiers, keys and file names untouched | done 2026-09-23 (see 0.11); review clean from both reviewers |
 | 9 | Rename to **Strata Workspaces**: display name, add-on id `strata-workspaces@dacite.dev`, homepage, docs, scripts; GitHub repo `DaciteRocks/strata-workspaces` and the `origin` remote, renamed as the last step | done 2026-09-23 (see 0.12); GitHub repo renamed and `origin` updated 2026-09-23 |
 | 10 | AMO listing refresh: description and version notes cover the Phase 7 activation rule and Phase 8 terminology; version stays 6.0.0.1 unless a package was already uploaded | done 2026-09-23 (see 0.13); version stays 6.0.0.1; review: one wording nit applied |
-| 11 | Clear the AMO validator warnings: `gecko.strict_min_version` raised to 142.0 (no `gecko_android` block), upstream's static module map in `module-runner.js` and `DOMParser` in `lang.js`, reviewer note for the vendored Vue `innerHTML`; `npm run lint:amo` (web-ext lint) as the gate | done 2026-09-28 (see 0.14); `lint:amo` 0 errors, 1 warning (Vue `innerHTML`); review clean; human checks not yet run |
+| 11 | Clear the AMO validator warnings: `gecko.strict_min_version` raised to 142.0 (no `gecko_android` block), upstream's static module map in `module-runner.js` and `DOMParser` in `lang.js`, reviewer note for the vendored Vue `innerHTML`; `npm run lint:amo` (web-ext lint) as the gate | done 2026-09-28 (see 0.14); `lint:amo` 0 errors, 1 warning (Vue `innerHTML`); human checks not yet run |
+| 12 | AMO listing images, with the Phase 5 icon kept: the existing `icons/icon.svg` regains upstream's `fill="transparent"` colour placeholder (workspace colours have been ignored for the default icon type since Phase 5); `npm run icons` renders `docs/amo/icon-128.png` — the glyph in ivory on a terracotta rounded square — plus a preview sheet, with headless Firefox + Pillow, no new npm package; `docs/AMO-LISTING.md` Images says what to upload where; the user's four screenshots move to `docs/amo/screenshots/` | planned (see 0.15) |
 
 Milestones 2–5 of §7 are covered by upstream (see 0.1) and are **not** re-implemented.
 
@@ -738,6 +739,224 @@ warnings, verified 2026-09-28, so it is this phase's gate — no new package.
   differences would only show in the six `html:` messages of the help pages; step 1 above covers them.
 - *`web-ext lint` and the AMO validator drift* (different addons-linter versions). The AMO result wins;
   if AMO reports something `lint:amo` did not, add it to this section rather than to the gate.
+
+### 0.15 Phase 12 — AMO listing images: the icon PNG, the workspace-colour placeholder, the screenshots
+
+**Status:** planned. (The earlier draft's Phase 13 — the PNG tooling — is folded in here, not split off:
+with the icon design kept there is no drawing work left, and the tooling *is* the phase.)
+
+**User decision (2026-09-28): keep the Phase 5 icon.** `addon/src/icons/icon.svg` — the two stacked
+windows, the front one with a two-level tab bar — is the fork's own drawing and stays exactly as it looks.
+No redesign, no colour SVG, no separate toolbar SVG; `manifest.json`, `icon-animate.svg`, `constants.js`
+and every in-app `/icons/icon.svg` reference are untouched.
+
+**Root cause of the puzzle piece (checked 2026-09-28).** The listing icon is not taken from the XPI.
+addons-server never reads the manifest `icons` key for a listing: the icon comes only from the Developer Hub
+"Images" form (`src/olympia/devhub/forms.py`: `ICON_TYPES = [('', 'default'), ('image/jpeg', 'jpeg'),
+('image/png', 'png')]`, field `icon_upload_hash`), is validated by `src/olympia/devhub/views.py`
+(`Icons must be either PNG or JPG.`, `Icons cannot be animated.`, `Icon must be at least 128 pixels wide and
+tall.`, `Icon must be square (same width and height).`) and is resized by `src/olympia/addons/tasks.py`
+`resize_icon` to `ADDON_ICON_SIZES = (32, 64, 128)` as PNG (`src/olympia/constants/base.py`). With nothing
+uploaded, `icon_type` is empty and `Addon.get_icon_url` returns `img/addon-icons/default-{size}.png` — the
+puzzle piece. Upstream STG is the proof: its manifest declares only `icons/icon.svg`, yet
+`https://addons.mozilla.org/api/v5/addons/addon/simple-tab-groups/` serves an uploaded
+`user-media/addon_icons/874/874813-128.png`. So (1) our SVG was never looked at and (2) an SVG could not be
+uploaded anyway. Secondary: the SVG's root `fill="context-fill light-dark(…)"` is a Firefox-chrome paint;
+any other renderer treats it as invalid and paints black, so the PNG render below replaces that attribute
+with a plain colour rather than screenshotting the file as is.
+Sources: `https://github.com/mozilla/addons-server` (paths above, `master`, read 2026-09-28) and Extension
+Workshop, "Creating an appealing add-on listing" → "Create a captivating icon"
+(`https://extensionworkshop.com/documentation/develop/create-an-appealing-listing/`: icons are loaded as
+PNG or JPEG; keep an SVG as the source).
+
+**Root cause of the ignored workspace colour (checked 2026-09-28).** `js/constants.js:108` maps the default
+workspace icon type `'main-squares'` to `/icons/icon.svg`, fetched as text at startup; `js/groups.js:1290`
+`getIconUrl` does `svg.replace('transparent', iconColor)` — the **first** occurrence of the word — and
+base64-encodes the result into a data URL, which the popup list, the manage page and notifications show and
+`js/browser.js:127` puts on the toolbar button per window whenever a workspace is loaded. Upstream's
+`icon.svg` carried `<path … fill="transparent" />` as that placeholder; the Phase 5 redraw dropped it, and
+the file has contained the word zero times since (`grep -c transparent addon/src/icons/icon.svg` → `0`), so
+the replace is a no-op and a workspace colour has been silently ignored for the default icon type ever
+since. `icon-animate.svg` is **not** affected: it never passes through `getIconUrl` (only the
+`'main-squares'` entry does); its three users (`browser.js:34`, `popup/popup.html:21`,
+`manage/Manage.vue:698`) reference it by path. It stays as it is.
+
+**Decisions.**
+
+- *The placeholder is one appended element: an overlay of the front window's outline.* Append to
+  `icon.svg`, after the existing front-window `<path>`, a second path with the **same `d` and
+  `fill-rule="evenodd"`** and `fill="transparent"`, plus a one-line comment that does not contain the word
+  `transparent`:
+
+  ```svg
+      <!-- workspace-colour overlay: groups.js getIconUrl swaps this fill for the workspace colour -->
+      <path fill="transparent" fill-rule="evenodd"
+          d="M18 40H78A14 14 0 0 1 92 54V110A14 14 0 0 1 78 124H18A14 14 0 0 1 4 110V54A14 14 0 0 1 18 40Z
+             M17 53H41V68H17Z
+             M47 53H79V68H47Z
+             M17 76H79V91H17Z" />
+  ```
+
+  With no colour the overlay is invisible and the glyph is pixel-identical to today. With a colour, the
+  front window's plate is painted in the workspace colour over the grey one (the explicit `fill` on the
+  element beats the root's inherited `context-fill`; the tab and bar cut-outs stay cut-outs by `evenodd`),
+  the back window stays grey: "the workspace in front is this colour". Why the whole plate and not the three
+  cut-outs: at the toolbar's 16 px the cut-outs are 3×2, 4×2 and 8×2 px and a colour there is invisible,
+  while the plate is about 11×11 px; upstream's placeholder was half the icon for the same reason. If the
+  preview sheet shows this reads too loud, the one-line alternative is to keep only the three cut-out
+  subpaths in the overlay's `d` (colour fills the tabs and bar instead) — a review-step tweak, not a new phase.
+  The word `transparent` must appear **exactly once** in the file, comments included — `getIconUrl` replaces
+  the first occurrence only. No other line of `icon.svg` changes.
+- *Renderer: headless Firefox + Python/Pillow, no npm package.* Firefox 156 is installed at
+  `C:\Program Files\Mozilla Firefox\firefox.exe` and is already the project's test browser; Python 3.10 and
+  Pillow 12.1 are installed on this machine (`python -c "import PIL"`). The PNGs are listing assets that only
+  the maintainer regenerates — never part of the XPI or of the reviewer's `npm run build-for-amo` — so a
+  machine-local toolchain is fine and `addon/README.md` does not change. `sharp`, `@resvg/resvg-js` or
+  `puppeteer` would each be a new native dependency to vet for one file.
+- *Firefox rasterises a mask; Pillow composes.* Firefox's `--screenshot` composites onto white
+  (`browser/components/shell/HeadlessShell.sys.mjs`: `drawSnapshot(rect, 1, "rgb(255, 255, 255)")`), so a
+  screenshot has no alpha. Instead of recovering alpha from two shots, the script never asks Firefox for the
+  final image: it renders the glyph **white on a black page** — the SVG text with its root
+  `fill="context-fill light-dark(#5b5b66,#fbfbfe)"` attribute replaced by `fill="#fff"` (assert exactly one
+  occurrence, so a future edit to the root fails loudly), inlined into a wrapper page, `html, body {margin: 0;
+  background: #000}`, `svg {display: block; width: 512px; height: 512px}` — and each pixel's value is then its
+  coverage, exact for a single solid fill. The rounded tile, the glyph colour and the downscale are Pillow's,
+  which is deterministic and needs no alpha tricks.
+- *Working size 512, output 128, scale-invariant.* `-window-size=512,512`, then `Image.resize((128, 128),
+  Image.LANCZOS)` on the finished RGBA tile (Pillow premultiplies for resampling, so no fringes). The script
+  only requires the shot to be **square**: whatever size Windows display scaling or a Firefox minimum-window
+  clamp returns is resized to 512 first; a non-square shot is cropped to its top-left square (the SVG is
+  anchored at 0,0). Record the observed shot size in the Status line.
+- *The look: ivory glyph on a terracotta rounded square.* Tile `#B5552F` (terracotta — an earth tone for
+  "Strata", about 4.8:1 against the ivory, distinct from both the puzzle piece and the grey toolbar glyph),
+  glyph `#FFF7EC` (ivory, not pure white), corner radius 28 of 128 (22 %), the SVG's 128-unit viewBox drawn at
+  92 of 128 px centred (18 px margin all round; the drawing itself spans 4–124 of its viewBox, so the ink
+  keeps about 21 px from the tile edge). Outside the tile: transparent. Drawn at 512 with
+  `ImageDraw.rounded_rectangle` then LANCZOS to 128, so the corners are antialiased. All four values are
+  named constants at the top of the script (`TILE`, `GLYPH`, `RADIUS`, `GLYPH_FRACTION`) so a palette change
+  is a one-line edit plus `npm run icons`. No text, gradient, shadow or outline.
+- *The preview sheet is built by Pillow too — no HTML page, no third screenshot.* `docs/amo/icon-preview.png`,
+  two rows on white and on `#2b2a33` (about:addons dark): the finished tile at 128, 64, 32 and 16 px (AMO
+  serves 128/64/32; 16 is the sanity check), then the **default workspace icon as `getIconUrl` produces it**,
+  plain and with a sample colour, at 32 and 16 px — direct visual proof of the placeholder fix without a
+  browser. For that the script takes one more mask shot: root fill replaced by `#000` and the placeholder's
+  `transparent` replaced by `#fff` using the same first-occurrence `str.replace('transparent', …)` as
+  `getIconUrl`, on the black page — the front plate's coverage. Compose: glyph colour (`#5b5b66` on the light
+  row, `#fbfbfe` on the dark row — the `light-dark()` pair) through the glyph mask, then the sample colour
+  `#4a90e2` through the plate mask on top. Small grey size labels in Pillow's default font (no font file).
+  Two Firefox launches total, fixed canvas (about 760×360), pixel-deterministic.
+- *One upload file.* AMO needs a single square PNG of at least 128 px and makes its own 32 and 64; the file is
+  `docs/amo/icon-128.png`. Firefox needs no PNG (the manifest keeps the SVG; no `theme_icons`, no XPI change).
+- *The screenshots move out of `addon/src/`.* The four untracked files in `addon/src/images/`
+  (`storepage1.png` 1916×130, `storepage2.png` 497×261, `storepage3.png` 1911×230, `storepage4.png`
+  1898×281 — the user's AMO captures, 147 KB) go to `docs/amo/screenshots/`, committed, and the empty
+  `addon/src/images/` folder goes away. Reason: they are listing assets, not add-on sources; nothing else
+  lives in that folder; `webpack.config.js`'s copy list (`icons`, `help`, `_locales`, `css`, …) does not
+  include `images`, so they were never in the XPI, and keeping them under `src/` invites a future copy
+  pattern to ship them. Plain move (they were never tracked, so there is no history to keep). Do not resize,
+  pad or rename them.
+- *Flag, do not fix: AMO may refuse these strips.* `src/olympia/devhub/views.py` (`ajax_upload_image`, read
+  2026-09-28) checks previews **when the `content-optimization` waffle switch is on**: `Image must be at
+  least 1000 pixels wide and 750 pixels tall.` and `Image dimensions must be in the ratio 4:3.`
+  (`ADDON_PREVIEW_SIZES['min'] = (1000, 750)`); thumbnails are boxed to `(533, 400)`. Whether the switch is
+  on in production is not visible from the source — the Developer Hub form will say. Either way a 1916×130
+  strip becomes a sliver in a 533×400 thumbnail. The phase records this in `docs/AMO-LISTING.md` and the
+  Verification step tries one upload; retaking at 4:3 (1280×960 or 1600×1200, full window) is the user's
+  call (open question below).
+
+**Scope.** At the end of the phase:
+
+- `addon/src/icons/icon.svg` — the overlay path and its comment appended as above; every existing line
+  byte-identical.
+- `addon/scripts/render-icons.py` — new. Finds Firefox (`FIREFOX_BIN` env, else
+  `C:\Program Files\Mozilla Firefox\firefox.exe`, else `firefox` on `PATH`). Reads `../src/icons/icon.svg`
+  relative to its own location, builds the two mask pages in a temp dir, runs
+  `firefox -headless -no-remote -profile <temp profile dir> -window-size=512,512 -screenshot <tmp png>
+  <file url>` for each (60 s timeout; on timeout or a missing `Screenshot saved to:` line, fail with
+  Firefox's output), composes `docs/amo/icon-128.png` and `docs/amo/icon-preview.png` as decided above,
+  prints both output paths and the observed shot size, deletes its temp dir and profile. Self-checks, each a
+  clear error: the root-fill attribute occurs exactly once; the SVG contains `transparent` exactly once; each
+  shot is square; in the result the corner pixel (0, 0) has alpha 0 and (64, 8) and (64, 64) have alpha 255.
+  Prints `pip install pillow` if Pillow is missing. Windows and POSIX paths both handled (`pathlib`,
+  `Path.as_uri()` for the `file:` URL).
+- `addon/package.json` — `"icons": "python scripts/render-icons.py"` next to the other scripts.
+- `docs/amo/icon-128.png`, `docs/amo/icon-preview.png` — generated by the script, committed (`docs/amo/` is
+  new).
+- `docs/amo/screenshots/storepage1.png` … `storepage4.png` — moved from `addon/src/images/`.
+- `docs/AMO-LISTING.md` "Images" — replace `Icon: taken from the manifest …; nothing to upload` with: AMO
+  does not read the manifest icon (the listing shows its default puzzle piece until one is uploaded); upload
+  `docs/amo/icon-128.png` in Developer Hub → the add-on → Edit Listing → Images → Add-on icon (PNG or JPG,
+  square, at least 128 px, not animated; AMO resizes to 32/64/128); regenerate with `npm run icons` from
+  `addon/` after any change to `addon/src/icons/icon.svg`, and `docs/amo/icon-preview.png` shows the result
+  at 16–128 px. Under **Screenshots**, before the existing five-item list: the current captures live in
+  `docs/amo/screenshots/`; AMO can require at least 1000×750 and exactly 4:3 and thumbnails to 533×400, so
+  full-window 4:3 captures (1280×960 or 1600×1200) display best, and the four strips there are below that.
+- This spec: §0.3 row 12 and this Status line.
+
+**Budget:** 4 files written (`icon.svg`, `render-icons.py`, `package.json`, `AMO-LISTING.md`) + 2 generated
+PNGs + 4 moved PNGs + this spec. Read to start: `addon/src/icons/icon.svg` (17 lines),
+`addon/src/js/groups.js` lines 1282–1296 (`getIconUrl`'s `main-squares` case), `addon/src/js/constants.js`
+lines 108–121, `addon/webpack.config.js` lines 102–124 (the copy list), `addon/package.json` scripts,
+`docs/AMO-LISTING.md` lines 76–86. About 60 lines of existing code; no JS changes. Fits one commit: the one
+claim is "the listing's images come from the repo", and the placeholder fix lives in the very file the PNG
+is rendered from.
+
+**Gate** (from `addon/` unless noted):
+
+1. `npm run icons` — exits 0, prints the two output paths and the shot size, and leaves nothing behind:
+   `git status --short` shows only the intended files and `%TEMP%` has no `strata-icon*` folder.
+2. `python -c "from PIL import Image; im = Image.open('../docs/amo/icon-128.png'); print(im.size, im.mode, im.getpixel((0, 0))[3], im.getpixel((64, 8))[3], im.getpixel((64, 64))[3])"`
+   prints `(128, 128) RGBA 0 255 255`.
+3. Run `npm run icons` a second time: `git status --short ../docs/amo` shows no change (deterministic output).
+4. From the repo root: `grep -c transparent addon/src/icons/icon.svg` prints `1`; `grep -c context-fill
+   addon/src/icons/icon.svg` prints `1`; `git diff addon/src/icons/icon.svg | grep -c '^-[^-]'` prints `0`
+   (additions only).
+5. `npm run build` (9 baseline warnings; `dist/icons/icon.svg` carries the overlay), `npx eslint addon/src`
+   from the repo root (only the 1 pre-existing error), `npm run test:firefox:smoke` passes, `npm run lint:amo`
+   `errors 0`, `warnings 1` (the Vue `innerHTML`) — `icon.svg` and `package.json` changed, so all four run.
+   `git status --short dist` shows nothing new (the PNGs live outside `addon/src`).
+6. `ls ../docs/amo/screenshots | wc -l` prints `4`; `addon/src/images/` no longer exists.
+
+**Verification** (human):
+
+1. The orchestrator shows `docs/amo/icon-preview.png` to the user: the terracotta tile at four sizes on light
+   and dark, and beside it the default workspace icon plain (grey, as today) and with a blue front window —
+   the second one is the placeholder fix working. A palette or radius change is applied in the review step.
+2. `npm run test:firefox`: edit a workspace that uses the default icon type and pick a colour — the front
+   window of its icon takes that colour in the popup list and, with that workspace loaded, on the toolbar
+   button; clear the colour and it is plain grey again. Everything else (toolbar, `about:addons`, the loading
+   animation) looks exactly as before. Workspaces from earlier builds need no migration (`iconViewType` is
+   unchanged).
+3. Developer Hub → the add-on → Edit Listing → Images → Add-on icon: upload `docs/amo/icon-128.png`; the
+   listing header and search cards show the tile instead of the puzzle piece. Then try one file from
+   `docs/amo/screenshots/` as a screenshot: if the form answers with the 1000×750 / 4:3 message, the strips
+   need retaking (open question).
+
+**Risks.**
+
+- *Firefox hands the URL to a running instance instead of rendering* — `-no-remote` with its own `-profile`
+  directory (Firefox creates it) avoids that. If no `Screenshot saved to:` line appears within 60 s, the
+  script fails with Firefox's output; close every Firefox and retry — the first launch of a fresh profile can
+  take ~10 s.
+- *The shot is not 512×512* (display scaling, a minimum window size, toolbar padding) — the mask is
+  scale-invariant, so the script resizes a square shot and crops a non-square one to its top-left square;
+  only a shot smaller than 256 px is an error. Record the size in the Status line.
+- *A second `transparent` sneaks into `icon.svg`* (a comment, a `stroke`) — `getIconUrl` replaces the first
+  occurrence only, so the colour lands on the wrong element; the script's self-check and gate step 4 count it.
+- *The overlay reads too loud, or a light workspace colour (yellow) fades on a light toolbar* — same as
+  upstream's half-icon placeholder; the cut-outs-only alternative in Decisions is the one-line fallback,
+  judged from the preview sheet in the review step.
+- *Pillow's default font is tiny* — the labels are hints only; do not add a font file.
+- *Pillow absent on another machine* — the script says `pip install pillow` and the PNGs are committed, so
+  nobody is blocked.
+- *AMO refuses the screenshots* — expected if the `content-optimization` switch is on (Decisions); the icon
+  upload is independent of it and a 128 px PNG is a few kilobytes, under any size cap.
+
+**Open question for the user.** The four screenshots are tab-bar strips (130–281 px tall). AMO may reject
+anything under 1000×750 / not 4:3 and in any case shows a 533×400 thumbnail, so they would display as thin
+lines. Retake them as full-window 4:3 captures (1280×960 or 1600×1200; `npm run test:firefox` gives a clean
+profile with the userChrome.css bar) before the listing goes live? The phase commits the current four
+regardless.
 
 ---
 
