@@ -13,4 +13,10 @@
            M17 53H41V68H17Z
            M47 53H79V68H47Z
            M17 76H79V91H17Z" />
+    <!-- workspace-colour overlay: groups.js getIconUrl swaps this fill for the workspace colour -->
+    <path fill="transparent" fill-rule="evenodd"
+        d="M18 40H78A14 14 0 0 1 92 54V110A14 14 0 0 1 78 124H18A14 14 0 0 1 4 110V54A14 14 0 0 1 18 40Z
+           M17 53H41V68H17Z
+           M47 53H79V68H47Z
+           M17 76H79V91H17Z" />
 </svg>
