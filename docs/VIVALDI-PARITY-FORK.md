@@ -75,7 +75,7 @@ Browser facts the fork relies on (all from `docs/TABGROUPS-BEHAVIOR.md`, verifie
 | 8 | User-visible terminology: the add-on's own groups are called **workspaces** in all English UI text; Firefox native groups are always **tab groups**; identifiers, keys and file names untouched | done 2026-09-23 (see 0.11); review clean from both reviewers |
 | 9 | Rename to **Strata Workspaces**: display name, add-on id `strata-workspaces@dacite.dev`, homepage, docs, scripts; GitHub repo `DaciteRocks/strata-workspaces` and the `origin` remote, renamed as the last step | done 2026-09-23 (see 0.12); GitHub repo renamed and `origin` updated 2026-09-23 |
 | 10 | AMO listing refresh: description and version notes cover the Phase 7 activation rule and Phase 8 terminology; version stays 6.0.0.1 unless a package was already uploaded | done 2026-09-23 (see 0.13); version stays 6.0.0.1; review: one wording nit applied |
-| 11 | Clear the AMO validator warnings: `gecko.strict_min_version` raised to 142.0 (no `gecko_android` block), upstream's static module map in `module-runner.js` and `DOMParser` in `lang.js`, reviewer note for the vendored Vue `innerHTML`; `npm run lint:amo` (web-ext lint) as the gate | planned (see 0.14) |
+| 11 | Clear the AMO validator warnings: `gecko.strict_min_version` raised to 142.0 (no `gecko_android` block), upstream's static module map in `module-runner.js` and `DOMParser` in `lang.js`, reviewer note for the vendored Vue `innerHTML`; `npm run lint:amo` (web-ext lint) as the gate | done 2026-09-28 (see 0.14); `lint:amo` 0 errors, 1 warning (Vue `innerHTML`); review clean; human checks not yet run |
 
 Milestones 2–5 of §7 are covered by upstream (see 0.1) and are **not** re-implemented.
 
@@ -644,7 +644,25 @@ run `npm run build-zip` once afterwards so the package names in the listing matc
 
 ### 0.14 Phase 11 — clear the AMO validator warnings
 
-**Status:** planned.
+**Status:** done 2026-09-28 — phase commit `4e61ebe8`, plus the review commit that carries this line.
+Gate green: `npm run build` (9 baseline warnings), eslint (only the 1 pre-existing error),
+`npm run test:firefox:smoke` passes, `npm run lint:amo` errors 0 / notices 0 / warnings 1 (the Vue
+`UNSAFE_VAR_ASSIGNMENT` `innerHTML` in `js/vue.runtime.esm.js`), the three greps all `0`. The human
+Verification checks below (Welcome page, debug-page link, move a tab to another workspace, restore a deleted
+workspace) are **not yet run**.
+
+**Review (local-code-review + code-review, merged):** `/code-review` no findings; `local-code-review` nothing
+≥80 — the module map covers all eight call-site names, the `DOMParser` switch has no visible change, both
+files are byte-identical to `upstream/master`, the 142.0 minimum is consistent, and the listing claims are
+accurate. Nothing applied in code.
+
+*Known upstream quirk, deliberately not fixed:* `addon/src/js/lang.js:115`,
+``const [, format = PARAMS_FORMAT_HTML] = new RegExp(MSG_REGEXP).exec(str) ?? [];``, defaults `format` to a
+boolean while line 191 compares it with the string `'html'`, so un-prefixed text is always plain text.
+Harmless today: every HTML message carries an explicit `html:` prefix. Fixing it would make `lang.js`
+diverge from upstream, which this phase exists to avoid; if upstream fixes it, the next merge picks it up.
+
+*Plan (as written before the phase):*
 
 The user ran the 6.0.0.1 package through the addons.mozilla.org validator: 0 errors, 4 warnings, one of them
 (dynamic `import()`) flagged as able to cause rejection. Three are fixable in the fork; the fourth is the
