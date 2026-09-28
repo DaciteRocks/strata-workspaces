@@ -13,7 +13,8 @@
         "lint:amo": "web-ext lint --source-dir dist",
         "test:firefox": "node scripts/test-firefox.js",
         "test:firefox:smoke": "node scripts/test-firefox.js --smoke",
-        "test:firefox:reset": "node scripts/test-firefox.js --reset"
+        "test:firefox:reset": "node scripts/test-firefox.js --reset",
+        "icons": "python scripts/render-icons.py"
     },
     "dependencies": {
         "vue": "^2.7.16",

@@ -75,9 +75,17 @@ recommended so users can see that.
 
 ## Images
 
-**Icon:** taken from the manifest (`addon/src/icons/icon.svg`); nothing to upload.
+**Icon:** AMO does not read the manifest icon; until one is uploaded the listing shows its default
+puzzle piece. Upload `docs/amo/icon-128.png` in Developer Hub → the add-on → Edit Listing → Images →
+Add-on icon (PNG or JPG, square, at least 128 px, not animated; AMO resizes it to 32/64/128). After any
+change to `addon/src/icons/icon.svg`, regenerate it with `npm run icons` from `addon/` (needs Firefox and
+Python with Pillow); `docs/amo/icon-preview.png` shows the result at 16–128 px.
 
-**Screenshots** to take in Firefox with the add-on installed, 1280×800 recommended, one feature each:
+**Screenshots:** the current captures live in `docs/amo/screenshots/`. AMO can require at least 1000×750
+at exactly 4:3 and shows thumbnails boxed to 533×400, so full-window 4:3 captures (1280×960 or 1600×1200)
+display best; the four tab-bar strips there are below that and may be refused.
+
+To take in Firefox with the add-on installed, one feature each:
 
 1. The toolbar popup listing several workspaces.
 2. The tab bar with two Firefox tab groups, one open and one collapsed.
