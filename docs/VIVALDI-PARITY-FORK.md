@@ -75,6 +75,7 @@ Browser facts the fork relies on (all from `docs/TABGROUPS-BEHAVIOR.md`, verifie
 | 8 | User-visible terminology: the add-on's own groups are called **workspaces** in all English UI text; Firefox native groups are always **tab groups**; identifiers, keys and file names untouched | done 2026-09-23 (see 0.11); review clean from both reviewers |
 | 9 | Rename to **Strata Workspaces**: display name, add-on id `strata-workspaces@dacite.dev`, homepage, docs, scripts; GitHub repo `DaciteRocks/strata-workspaces` and the `origin` remote, renamed as the last step | done 2026-09-23 (see 0.12); GitHub repo renamed and `origin` updated 2026-09-23 |
 | 10 | AMO listing refresh: description and version notes cover the Phase 7 activation rule and Phase 8 terminology; version stays 6.0.0.1 unless a package was already uploaded | done 2026-09-23 (see 0.13); version stays 6.0.0.1; review: one wording nit applied |
+| 11 | Clear the AMO validator warnings: `gecko_android` min 142 in the manifest, upstream's static module map in `module-runner.js` and `DOMParser` in `lang.js`, reviewer note for the vendored Vue `innerHTML`; `npm run lint:amo` (web-ext lint) as the gate | planned (see 0.14) |
 
 Milestones 2–5 of §7 are covered by upstream (see 0.1) and are **not** re-implemented.
 
@@ -605,8 +606,8 @@ add-on does, not what the add-on is called), and it is reviewed differently (pro
 each *uploaded* version to be new; the version notes are a first-release note whatever number they carry.
 The zip names, `addon/README.md` and the listing all follow `manifest.json`, so a bump changes three
 documents for no reader. **Bump to `6.0.0.2` only if a `6.0.0.1` package was ever uploaded to AMO, even as a
-cancelled or deleted submission** — AMO refuses a re-used version number permanently. That is an open
-question for the user (below). If bumping: `addon/src/manifest.json` `version`, the two zip names and the
+cancelled or deleted submission** — AMO refuses a re-used version number permanently. Decided 2026-09-23
+(above): nothing was ever uploaded, so no bump. If bumping: `addon/src/manifest.json` `version`, the two zip names and the
 "Version notes (…)" heading in `docs/AMO-LISTING.md`; `addon/README.md` uses a `<version>` placeholder.
 
 **Scope.** `docs/AMO-LISTING.md` only (plus `manifest.json` if the bump is chosen):
@@ -640,6 +641,85 @@ no bare "group"; the summary count stated in the file is the real one (`wc -m` o
 
 **Risks:** none technical. If the user chooses the bump, the "Stale local zips" line in Phase 9 applies —
 run `npm run build-zip` once afterwards so the package names in the listing match files on disk.
+
+### 0.14 Phase 11 — clear the AMO validator warnings
+
+**Status:** planned.
+
+The user ran the 6.0.0.1 package through the addons.mozilla.org validator: 0 errors, 4 warnings, one of them
+(dynamic `import()`) flagged as able to cause rejection. Three are fixable in the fork; the fourth is the
+unmodified vendored Vue runtime and gets a reviewer note instead. `npx web-ext lint --source-dir addon/dist`
+(web-ext 10.6 is already a devDependency, used by `scripts/test-firefox.js`) reproduces exactly the same four
+warnings, verified 2026-09-28, so it is this phase's gate — no new package.
+
+**Decisions.**
+
+- *#2 and #3 are upstream's own change — take upstream's files, do not rewrite them.* Upstream commit
+  `3b024e5c` (2026-09-24, on `upstream/master`, after the fork base `71b37bf1`) replaced the dynamic import
+  with a static map and `createContextualFragment` with `DOMParser`. `git diff --stat upstream/master --
+  addon/src/js/module-runner.js addon/src/js/lang.js` is exactly those two hunks (3 insertions, 11 deletions),
+  so `git checkout upstream/master -- addon/src/js/module-runner.js addon/src/js/lang.js` is the whole fix and
+  leaves both files byte-identical with upstream (the next upstream merge cannot conflict there). Do **not**
+  merge `upstream/master` and do not cherry-pick `3b024e5c` (it touches 16 files).
+- *The static map is complete.* `runModule` has two call sites, `js/menus.js:43` (`menu.module`) and
+  `js/notification.js:54` (`notification.module`); every descriptor is a literal array whose first element is
+  one of `tabs`, `windows`, `browser` (`background.js`), `groups` (`groups.js`, `tabs.js`), or `MODULE_NAME`
+  of `menus-main`, `menus-tab`, `menus-link`, `menus-bookmark`. Upstream's map holds exactly these eight.
+  An unknown name makes `MODULES[moduleName]()` throw a `TypeError`, caught by `log.onCatch(['execute
+  module', …])` — a clear error, no custom guard (a guard would diverge from upstream for nothing).
+- *#1: add `"gecko_android": {"strict_min_version": "142.0"}`* beside `gecko` in `browser_specific_settings`.
+  Desktop `strict_min_version` stays `140.0`; desktop behavior is unchanged. See the Android risk below.
+- *#4: do not touch `js/vue.runtime.esm.js`.* The `innerHTML` at line ~7580 is Vue 2.7.16's `v-html`
+  implementation; all `v-html` bindings (`options/*.vue`) receive the add-on's own locale strings with
+  hard-coded URLs and browser-name data. It gets one paragraph in `docs/AMO-LISTING.md` "Notes to reviewer".
+- *Gate script:* add `"lint:amo": "web-ext lint --source-dir dist"` to `addon/package.json` scripts, and one
+  line in `addon/README.md` after `npm run build-for-amo` telling the reviewer they can run it.
+
+**Scope.** At the end of the phase:
+
+- `addon/src/manifest.json` — `gecko_android` block added.
+- `addon/src/js/module-runner.js`, `addon/src/js/lang.js` — identical to `upstream/master`.
+- `addon/package.json` — `lint:amo` script; `addon/README.md` — one line naming it.
+- `docs/AMO-LISTING.md` "Notes to reviewer" — a paragraph: the remaining `innerHTML` warning is the unmodified
+  Vue 2.7.16 runtime's `v-html` and every binding receives locale strings and hard-coded values; the other
+  three warnings from the first validator run (Android min version, dynamic import, `createContextualFragment`)
+  are fixed in this version.
+- This spec: §0.3 row 11 and this Status line.
+
+**Budget:** 6 files + this spec. Read to start: `module-runner.js` (40 lines), `lang.js` lines 176–201,
+`manifest.json` lines 1–15, `package.json` scripts, `docs/AMO-LISTING.md` from "Notes to reviewer".
+
+**Gate** (all from `addon/` unless noted):
+
+1. `npm run build` — green, the 9 baseline warnings only.
+2. `npx eslint addon/src` from the repo root — only the 1 pre-existing error.
+3. `npm run test:firefox:smoke` — passes.
+4. `npm run lint:amo` — `errors 0`, `warnings 1`, and that one is `UNSAFE_VAR_ASSIGNMENT` "Unsafe assignment to
+   innerHTML" in `js/vue.runtime.esm.js`. Anything else listed means a fix is missing.
+5. `grep -c 'import(\`' dist/js/module-runner.js` and `grep -c createContextualFragment dist/js/lang.js` both
+   print `0`; `grep -c '"message": "[[:space:]]' src/_locales/*/messages.json` prints `0` for every locale
+   (the HTML parser drops leading whitespace before `<body>`; `createContextualFragment` kept it).
+
+**Verification** (human, in `npm run test:firefox`; run `npm run test:firefox:reset` first for a fresh profile):
+
+1. The Welcome page (`help/welcome.html`, an `html:` message) opens on install with its bold text and line
+   breaks; open `moz-extension://<uuid>/help/stg-debug.html` and the link inside the logging description is a
+   real link. Options pages are Vue `v-html` and do not go through the changed code.
+2. Static map end to end: right-click a tab → move it to another workspace (`menus-tab`); delete a workspace
+   and click "restore" on its notification (`groups.js` → `['groups', 'restore', …]`). Both work, no
+   "is not a function" in the debug log.
+
+**Risks.**
+
+- *`gecko_android` may make AMO mark the version as compatible with Firefox for Android.* AMO reads that key
+  as an Android-support signal; the listing says desktop only. After upload, check the version's
+  compatibility on AMO. If Android was added and the listing's compatibility control cannot remove it, replace
+  the `gecko_android` block with `gecko.strict_min_version: "142.0"` — that also clears the warning, and the
+  fork is only tested on Firefox 154+; then update the `140.0` mention at the top of §0.
+- *`DOMParser` nodes are inert* (scripts do not run) — fine, no locale string carries a script. Formatting
+  differences would only show in the six `html:` messages of the help pages; step 1 above covers them.
+- *`web-ext lint` and the AMO validator drift* (different addons-linter versions). The AMO result wins;
+  if AMO reports something `lint:amo` did not, add it to this section rather than to the gate.
 
 ---
 
