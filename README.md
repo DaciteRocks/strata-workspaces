@@ -8,8 +8,7 @@
 > **Strata Workspaces is a fork of Simple Tab Groups**, not the upstream add-on. The links and badges
 > directly above point at upstream. It adds a Vivaldi-style *single-active* rule for Firefox native tab groups (open one tab group and the previously
 > open one collapses) on top of upstream's native-group persistence, and ships as a separately signed
-> add-on (`strata-workspaces@dacite.dev`). Design, status and phases:
-> [`docs/VIVALDI-PARITY-FORK.md`](docs/VIVALDI-PARITY-FORK.md). Companion tab-bar stylesheet:
+> add-on (`strata-workspaces@dacite.dev`). Companion tab-bar stylesheet:
 > [`chrome/`](chrome/README.md). Upstream: <https://github.com/Drive4ik/simple-tab-groups>.
 >
 > **Migrating from upstream STG:** the fork has its own add-on id, so it starts with empty storage.

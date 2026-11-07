@@ -1,6 +1,6 @@
 # Companion `userChrome.css` — Vivaldi two-level tab bar
 
-The styling half of the Vivaldi-parity setup (design: `docs/VIVALDI-PARITY-FORK.md` §2 and §8).
+The styling half of the Vivaldi-parity setup.
 The fork carries behavior and persistence; this stylesheet carries appearance only. Neither alone
 gives Vivaldi parity — together they do.
 

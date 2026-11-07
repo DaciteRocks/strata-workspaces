@@ -9,7 +9,7 @@ import Logger from './logger.js';
 import * as Storage from './storage.js';
 import * as Operations from './operations.js';
 
-// Single-active native groups (Vivaldi "two-level bar" model, docs/VIVALDI-PARITY-FORK.md §4.4):
+// Single-active native groups (Vivaldi "two-level bar" model):
 // at most ONE native group per window is expanded. When the user expands a group, every other
 // expanded group in that window is collapsed by the addon, so a userChrome.css layer keyed on
 // `tab-group:not([collapsed])` always shows exactly one group on its bottom bar.
