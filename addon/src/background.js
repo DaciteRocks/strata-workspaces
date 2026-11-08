@@ -9,6 +9,7 @@ import Listeners, {getExtensionStartTime} from '/js/listeners.js\
 &runtime.onMessage\
 &runtime.onMessageExternal\
 &runtime.onInstalled\
+&runtime.onStartup\
 &browserAction.onClicked\
 &commands.onCommand\
 &alarms.onAlarm\
@@ -1845,6 +1846,36 @@ async function setActionToReloadAddon() {
 
     Listeners.browserAction.onClicked.add(() => browser.runtime.reload());
 }
+
+// session restore may still be bringing tabs back when the addon starts
+const LOST_TABS_CHECK_DELAY = 30_000;
+
+// a workspace's tabs live only in the browser session, the addon can't read the startup setting itself
+async function warnIfWorkspaceTabsLost() {
+    const log = logger.start('warnIfWorkspaceTabsLost');
+
+    if (!storage.inited) {
+        log.stopWarn('background not yet inited');
+        return;
+    }
+
+    const {groups} = await Groups.load(null, true);
+    const workspaces = groups.filter(group => !group.isArchive);
+
+    if (workspaces.length && workspaces.every(group => !group.tabs.length)) {
+        log.warn('all workspaces are empty after browser start');
+        await Notification('workspaceTabsLostAfterRestart', {
+            id: 'workspace-tabs-lost',
+            expires: Notification.MAX_EXPIRES,
+        });
+    }
+
+    log.stop();
+}
+
+Listeners.runtime.onStartup.add(() => {
+    self.setTimeout(() => warnIfWorkspaceTabsLost().catch(logger.onCatch('warnIfWorkspaceTabsLost', false)), LOST_TABS_CHECK_DELAY);
+});
 
 Listeners.extension.onStart.add(async () => {
     await Browser.action({

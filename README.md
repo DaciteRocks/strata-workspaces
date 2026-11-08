@@ -39,6 +39,17 @@
 > the zips in `addon/dist-zip/` for signing as an **unlisted** add-on on
 > <https://addons.mozilla.org/developers/>.
 
+## Keeping your tabs across restarts
+
+Turn on **Open previous windows and tabs** in Firefox Settings → General → Startup. Workspace names
+and colours are saved by the add-on, but the tabs themselves are saved by Firefox's session. With this
+setting off, Firefox doesn't reopen them and your workspaces come back empty. Clearing browsing history
+when Firefox closes can have the same effect.
+
+If that happens, the add-on shows a notification about 30 seconds after Firefox starts. Use
+History → **Restore Previous Session** to get the tabs back, ideally before restarting Firefox again,
+or restore one of the automatic backups from the add-on's Options.
+
 ## Translations
 
 Please, help me [translate this addon](https://drive4ik.github.io/simple-tab-groups/translate/index.html) into your language!

@@ -789,6 +789,10 @@
         "message": "Backup successfully restored!",
         "description": "Backup successfully restored"
     },
+    "workspaceTabsLostAfterRestart": {
+        "message": "Your workspaces came back without their tabs. To get them back, use History > Restore Previous Session. To keep them next time, turn on \"Open previous windows and tabs\" in Firefox settings.",
+        "description": "Shown at browser start when every workspace is empty. History > Restore Previous Session and \"Open previous windows and tabs\" are Firefox's own menu and setting names."
+    },
     "loading": {
         "message": "Loading, please wait...",
         "description": "Loading, please wait..."
